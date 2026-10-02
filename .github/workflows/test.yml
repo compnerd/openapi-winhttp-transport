@@ -1,0 +1,50 @@
+# Copyright © 2026 Saleem Abdulrasool <compnerd@compnerd.org>. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: Windows tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-11-arm
+            swift: arm64
+            python: arm64
+          - runner: windows-latest
+            swift: amd64
+            python: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: compnerd/gha-setup-swift@397094e75494a93fa8d81db0268dbc8f5d6cf7c6
+        with:
+          source: swift.org
+          swift-version: swift-6.4.0-release
+          swift-build: 6.4.0-RELEASE
+          build_arch: ${{ matrix.swift }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: ${{ matrix.python }}
+      - name: Test
+        shell: pwsh
+        env:
+          WINHTTP_TEST_URL: http://127.0.0.1:18841
+        run: |
+          $fixture = Start-Process python -ArgumentList Tests/Fixtures/server.py `
+              -NoNewWindow -PassThru
+          try {
+            swift test
+          } finally {
+            Stop-Process -Id $fixture.Id
+          }
